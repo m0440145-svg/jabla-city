@@ -629,7 +629,7 @@ export default function App() {
   const doReg = () => { if (authForm.email && authForm.password && authForm.name) { setUser({ name: authForm.name, email: authForm.email }); setModal(null); setAuthForm({}); } };
   const inp = (f, ph, type = "text") => (<input key={f} type={type} placeholder={ph} value={authForm[f] || ""} onChange={e => setAuthForm({ ...authForm, [f]: e.target.value })} style={{ width: "100%", padding: "11px 14px", borderRadius: 10, fontSize: 13, border: `1px solid ${dark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)"}`, background: inputBg, color: txt, direction: "rtl", marginBottom: 12, outline: "none", fontFamily: "inherit" }} />);
 
-  const NAV = [["home", "الرئيسية"], ["landmarks", "المعالم"], ["history", "التاريخ"], ["gallery", "الصور"], ["map", "الخريطة"], ["dashboard", "⚙️ لوحة التحكم"]];
+  const NAV = [["home", "الرئيسية"], ["landmarks", "المعالم"], ["history", "التاريخ"], ["gallery", "الصور"], ["map", "الخريطة"]];
 
   return (
     <div style={{ fontFamily: "Arial, sans-serif", direction: "rtl", background: bg, minHeight: "100vh", transition: "background .3s" }}>
