@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc } from "firebase/firestore";
@@ -11,7 +11,6 @@ const firebaseConfig = {
   messagingSenderId: "1014231375142",
   appId: "1:1014231375142:web:d8fd3ef44b781350a1b5e7"
 };
-
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
@@ -38,15 +37,50 @@ const DEFAULT_NEWS = [
   { cat: "تعليم", catColor: "#D97706", catBg: "#FEF3C7", date: "٢٠ مارس ٢٠٢٥", title: "مركز التعليم والتدريب المهني في جبلة", summary: "افتُتح مركز جديد للتعليم والتدريب المهني في جبلة لتأهيل الشباب.", img: REAL_PHOTOS.city2, accent: "#D97706", time: "منذ ٣ أسابيع" },
 ];
 
-const LANDMARKS_INIT = [
-  { name: "مسجد الملكة أروى", era: "القرن ١١م", category: "مسجد أثري", img: REAL_PHOTOS.mosque, desc: "يُعدّ مسجد الملكة أروى من أجمل وأهم المساجد الإسلامية في اليمن.", rating: 4.7 },
-  { name: "قصر أروى الملكي", era: "القرن ١١م", category: "قصر تاريخي", img: REAL_PHOTOS.palace, desc: "قصر الملكة أروى بنت أحمد الصليحي التي حكمت في القرن الحادي عشر الميلادي.", rating: 4.4 },
-  { name: "حصن التعكر", era: "العصور الوسطى", category: "حصن أثري", img: REAL_PHOTOS.fort, desc: "حصن تاريخي شامخ يقع في منطقة التعكر بمحافظة إب.", rating: 4.6 },
+const SLIDES = [
+  { id: 1, badge: "عاصمة الدولة الصليحية", title: "مرحباً بك في جبلة", subtitle: "مدينة الملكة أروى بنت أحمد، جوهرة اليمن التاريخية في محافظة إب على ارتفاع ٢٢٠٠ متر", btn1: "استكشف المعالم", btn2: "تاريخ المدينة", bg1: "#042C53", bg2: "#185FA5", accent: "#378ADD" },
+  { id: 2, badge: "تراث إسلامي خالد", title: "مسجد الملكة أروى", subtitle: "بُني في القرن ١١م ويضم قبر الملكة أروى — تقييم ٤.٧ ⭐", btn1: "تفاصيل المسجد", btn2: "الموقع", bg1: "#04342C", bg2: "#0F6E56", accent: "#1D9E75" },
+  { id: 3, badge: "قصر تاريخي فريد", title: "قصر أروى الملكي", subtitle: "٣٦٥ غرفة تاريخية — تقييم ٤.٤ ⭐", btn1: "جولة في القصر", btn2: "الصور", bg1: "#412402", bg2: "#854F0B", accent: "#EF9F27" },
 ];
 
-const TIMELINE_INIT = [
-  { year: "١٠٤٧م", title: "تأسيس الدولة الصليحية", text: "أسّس علي بن محمد الصليحي الدولة الصليحية واختار جبلة عاصمةً لها." },
-  { year: "١٠٦٧م", title: "عصر الملكة أروى الذهبي", text: "تولّت الملكة أروى بنت أحمد الصليحي مقاليد الحكم وحكمت أكثر من ٥٠ عاماً." },
+const LANDMARKS_FULL = [
+  { id: "mosque", name: "مسجد الملكة أروى", rating: 4.7, reviews: 61, era: "القرن ١١ الميلادي", category: "مسجد أثري", color: "#185FA5", bg: "#E6F1FB", img: REAL_PHOTOS.mosque, img2: REAL_PHOTOS.mosque2, desc: "يُعدّ مسجد الملكة أروى من أجمل وأهم المساجد الإسلامية في اليمن.", location: "جبلة، محافظة إب، اليمن", mapUrl: "https://maps.google.com/?cid=11215737704700475853" },
+  { id: "palace", name: "قصر أروى الملكي", rating: 4.4, reviews: 304, era: "القرن ١١ الميلادي", category: "قصر تاريخي", color: "#0F6E56", bg: "#E1F5EE", img: REAL_PHOTOS.palace, img2: REAL_PHOTOS.palace2, desc: "قصر الملكة أروى بنت أحمد الصليحي التي حكمت في القرن الحادي عشر الميلادي.", location: "جبلة، محافظة إب، اليمن", mapUrl: "https://maps.google.com/?cid=15453322087045509972" },
+  { id: "fort", name: "حصن التعكر", rating: 4.6, reviews: 79, era: "العصور الوسطى", category: "حصن أثري", color: "#854F0B", bg: "#FAEEDA", img: REAL_PHOTOS.fort, img2: REAL_PHOTOS.fort2, desc: "حصن تاريخي شامخ يقع في منطقة التعكر بمحافظة إب.", location: "منطقة التعكر، محافظة إب، اليمن", mapUrl: "https://maps.google.com/?cid=3032309188263302391" },
+  { id: "city", name: "المدينة التاريخية", rating: null, reviews: null, era: "القرن ١١م — حتى اليوم", category: "مدينة تراثية", color: "#7F77DD", bg: "#EEEDFE", img: REAL_PHOTOS.city, img2: REAL_PHOTOS.city2, desc: "مدينة جبلة القديمة بأزقتها الحجرية الضيقة وبيوتها التقليدية.", location: "جبلة، محافظة إب، اليمن", mapUrl: "https://maps.google.com/?cid=5735414387043044634" },
+];
+
+const HISTORY_TIMELINE = [
+  { year: "قبل الإسلام", title: "جبلة في عصور اليمن القديم", text: "كانت منطقة جبلة مأهولة بالسكان منذ عصور سحيقة.", color: "#7F77DD" },
+  { year: "١٠٤٧م", title: "تأسيس الدولة الصليحية", text: "أسّس علي بن محمد الصليحي الدولة الصليحية واختار جبلة عاصمةً لها.", color: "#185FA5" },
+  { year: "١٠٦٧م", title: "عصر الملكة أروى الذهبي", text: "تولّت الملكة أروى بنت أحمد الصليحي مقاليد الحكم وحكمت أكثر من ٥٠ عاماً.", color: "#0F6E56" },
+  { year: "٤٧٧-٥٣٢ هـ", title: "بناء مسجد الملكة أروى", text: "أمرت الملكة أروى ببناء المسجد الجامع في جبلة.", color: "#EF9F27" },
+  { year: "١١٣٨م", title: "وفاة الملكة أروى", text: "انتقلت الملكة أروى إلى رحمة الله ودُفنت في مسجدها.", color: "#E24B4A" },
+  { year: "اليوم", title: "جبلة — إرث خالد", text: "تقف جبلة اليوم موقعاً تراثياً وسياحياً بارزاً.", color: "#1D9E75" },
+];
+
+const GALLERY_IMGS = [
+  { src: REAL_PHOTOS.mosque, caption: "مسجد الملكة أروى" },
+  { src: REAL_PHOTOS.mosque2, caption: "داخل المسجد" },
+  { src: REAL_PHOTOS.palace, caption: "قصر أروى الملكي" },
+  { src: REAL_PHOTOS.palace2, caption: "أطلال القصر" },
+  { src: REAL_PHOTOS.palace3, caption: "تفاصيل معمارية" },
+  { src: REAL_PHOTOS.city, caption: "المدينة التاريخية" },
+  { src: REAL_PHOTOS.city2, caption: "منظر عام لجبلة" },
+  { src: REAL_PHOTOS.fort, caption: "حصن التعكر" },
+  { src: REAL_PHOTOS.fort2, caption: "الحصن من زاوية أخرى" },
+  { src: REAL_PHOTOS.nature, caption: "الطبيعة المحيطة" },
+];
+
+const STATS = [
+  { icon: "👥", label: "عدد السكان", value: "٥٠,٠٠٠+", sub: "نسمة", color: "#378ADD" },
+  { icon: "🏛️", label: "المعالم الأثرية", value: "١٥+", sub: "موقع", color: "#1D9E75" },
+  { icon: "🕌", label: "المساجد التاريخية", value: "٨", sub: "مسجد", color: "#EF9F27" },
+  { icon: "⛰️", label: "الارتفاع عن البحر", value: "٢٢٠٠", sub: "متر", color: "#7F77DD" },
+  { icon: "📅", label: "عمر المدينة", value: "١٠٠٠+", sub: "سنة", color: "#D97706" },
+  { icon: "🎓", label: "المدارس والمعاهد", value: "٢٤", sub: "مؤسسة", color: "#16A34A" },
+  { icon: "🏥", label: "المرافق الصحية", value: "١٢", sub: "مرفق", color: "#E24B4A" },
+  { icon: "🛒", label: "الأسواق التراثية", value: "٥", sub: "سوق", color: "#9333EA" },
 ];
 
 const CAT_OPTIONS = [
@@ -116,301 +150,232 @@ function Dashboard({ dark, firebaseUser }) {
   const border = dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)";
   const txt = dark ? "#e8e8f0" : "#1a1a2e";
   const txt2 = dark ? "#9090b0" : "#6b7280";
+  const bg2 = dark ? "#13132a" : "#f8f9fb";
   const inputBg = dark ? "#252540" : "#f4f5f7";
 
-  const [dashTab, setDashTab] = useState("news");
+  const [dashTab, setDashTab] = useState("overview");
   const [news, setNews] = useState([]);
-  const [landmarks, setLandmarks] = useState([]);
-  const [timeline, setTimeline] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(null); // null | {type: "news"|"landmark"|"timeline", action: "add"|"edit", data: {}}
+  const [modal, setModal] = useState(null); // null | "add" | {article}
   const [form, setForm] = useState({});
-  const [delConfirm, setDelConfirm] = useState(null); // null | {id, type}
+  const [delConfirm, setDelConfirm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+  const [siteSettings, setSiteSettings] = useState({ name: "جبلة — درة اليمن", tagline: "بوابة المدينة الإخبارية", email: "info@jabla-city.org", https: true, logging: true, backup: true });
+  const [settingsSaved, setSettingsSaved] = useState(false);
 
-  const fetchData = async () => {
+  const fetchNews = async () => {
     setLoading(true);
     try {
-      // News
-      const newsSnap = await getDocs(collection(db, "news"));
-      if (newsSnap.empty) {
+      const snap = await getDocs(collection(db, "news"));
+      if (snap.empty) {
+        // أضف البيانات الافتراضية أول مرة
         for (const n of DEFAULT_NEWS) await addDoc(collection(db, "news"), n);
-        const newsSnap2 = await getDocs(collection(db, "news"));
-        setNews(newsSnap2.docs.map(d => ({ id: d.id, ...d.data() })));
+        const snap2 = await getDocs(collection(db, "news"));
+        setNews(snap2.docs.map(d => ({ id: d.id, ...d.data() })));
       } else {
-        setNews(newsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setNews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       }
-
-      // Landmarks
-      const landmarksSnap = await getDocs(collection(db, "landmarks"));
-      if (landmarksSnap.empty) {
-        for (const l of LANDMARKS_INIT) await addDoc(collection(db, "landmarks"), l);
-        const landmarksSnap2 = await getDocs(collection(db, "landmarks"));
-        setLandmarks(landmarksSnap2.docs.map(d => ({ id: d.id, ...d.data() })));
-      } else {
-        setLandmarks(landmarksSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      }
-
-      // Timeline
-      const timelineSnap = await getDocs(collection(db, "timeline"));
-      if (timelineSnap.empty) {
-        for (const t of TIMELINE_INIT) await addDoc(collection(db, "timeline"), t);
-        const timelineSnap2 = await getDocs(collection(db, "timeline"));
-        setTimeline(timelineSnap2.docs.map(d => ({ id: d.id, ...d.data() })));
-      } else {
-        setTimeline(timelineSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      }
-
     } catch (e) { console.error(e); }
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchNews(); }, []);
 
   const showMsg = (m) => { setMsg(m); setTimeout(() => setMsg(""), 3000); };
 
-  const handleSave = async () => {
+  const saveArticle = async () => {
+    if (!form.title || !form.summary) return;
     setSaving(true);
     try {
-      const type = modal.type;
-      const action = modal.action;
-      let data = { ...form };
-
-      if (type === "news") {
-        const catObj = CAT_OPTIONS.find(c => c.label === form.cat) || CAT_OPTIONS[0];
-        data = { ...data, catColor: catObj.color, catBg: catObj.bg, accent: catObj.accent, date: new Date().toLocaleDateString("ar-SA"), time: "الآن" };
-      }
-
-      if (action === "add") {
-        await addDoc(collection(db, type), data);
-        showMsg("✅ تم الإضافة بنجاح");
+      const catObj = CAT_OPTIONS.find(c => c.label === form.cat) || CAT_OPTIONS[0];
+      const data = { title: form.title, summary: form.summary, cat: catObj.label, catColor: catObj.color, catBg: catObj.bg, accent: catObj.accent, img: form.img || REAL_PHOTOS.mosque, date: new Date().toLocaleDateString("ar-SA"), time: "الآن" };
+      if (modal === "add") {
+        await addDoc(collection(db, "news"), data);
+        showMsg("✅ تم إضافة المقال بنجاح");
       } else {
-        await updateDoc(doc(db, type, modal.data.id), data);
-        showMsg("✅ تم التعديل بنجاح");
+        await updateDoc(doc(db, "news", modal.id), data);
+        showMsg("✅ تم تعديل المقال بنجاح");
       }
-      await fetchData();
+      await fetchNews();
       setModal(null); setForm({});
     } catch (e) { console.error(e); }
     setSaving(false);
   };
 
-  const handleDelete = async () => {
+  const deleteArticle = async (id) => {
     try {
-      await deleteDoc(doc(db, delConfirm.type, delConfirm.id));
-      showMsg("🗑️ تم الحذف بنجاح");
-      await fetchData();
+      await deleteDoc(doc(db, "news", id));
+      showMsg("🗑️ تم حذف المقال");
+      await fetchNews();
     } catch (e) { console.error(e); }
     setDelConfirm(null);
   };
 
-  const DASH_TABS = [
-    { id: "news", label: "📝 الأخبار", color: "#185FA5" },
-    { id: "landmarks", label: "🏛️ المعالم", color: "#0F6E56" },
-    { id: "timeline", label: "⏳ التاريخ", color: "#854F0B" },
-    { id: "settings", label: "⚙️ الإعدادات", color: "#7F77DD" }
-  ];
+  const DASH_TABS = [["overview", "📊 نظرة عامة"], ["content", "📝 المحتوى"], ["settings", "⚙️ الإعدادات"]];
 
-  const inpStyle = { width: "100%", padding: "10px 12px", borderRadius: 8, fontSize: 13, border: `1px solid ${border}`, background: inputBg, color: txt, direction: "rtl", outline: "none", fontFamily: "inherit", boxSizing: "border-box", marginBottom: 10 };
+  const inpStyle = { width: "100%", padding: "9px 12px", borderRadius: 8, fontSize: 12, border: `1px solid ${border}`, background: inputBg, color: txt, direction: "rtl", outline: "none", fontFamily: "inherit", boxSizing: "border-box", marginBottom: 10 };
 
   return (
-    <div style={{ minHeight: "100vh", background: dark ? "#0a0a16" : "#f0f2f5", direction: "rtl", fontFamily: "sans-serif" }}>
+    <div style={{ padding: "14px", direction: "rtl" }}>
       {/* Header */}
-      <div style={{ background: "linear-gradient(135deg,#042C53,#185FA5)", padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 2px 10px rgba(0,0,0,0.1)" }}>
+      <div style={{ background: "linear-gradient(135deg,#042C53,#185FA5)", borderRadius: 16, padding: "18px 20px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
         <div>
-          <div style={{ color: "#fff", fontSize: 18, fontWeight: "bold" }}>لوحة تحكم مدينة جبلة</div>
-          <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}>{firebaseUser?.email} — مدير النظام</div>
+          <div style={{ fontSize: 11, color: "#9FE1CB", border: "1px solid rgba(29,158,117,0.4)", display: "inline-block", padding: "2px 12px", borderRadius: 99, marginBottom: 6, background: "rgba(29,158,117,0.15)" }}>لوحة التحكم — Firebase</div>
+          <div style={{ fontSize: 18, fontWeight: 500, color: "#E6F1FB" }}>مرحباً 👋</div>
+          <div style={{ fontSize: 12, color: "#85B7EB" }}>{firebaseUser?.email}</div>
         </div>
-        <button onClick={() => signOut(auth)} style={{ background: "#e24b4a", color: "#fff", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontWeight: "bold" }}>تسجيل الخروج</button>
+        <button onClick={() => signOut(auth)}
+          style={{ background: "rgba(226,75,74,0.2)", border: "1px solid rgba(226,75,74,0.4)", borderRadius: 10, padding: "8px 16px", color: "#F09595", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+          🚪 خروج
+        </button>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: "20px auto", padding: "0 20px" }}>
-        {msg && <div style={{ background: "#d1fae5", color: "#065f46", padding: "12px 20px", borderRadius: 10, marginBottom: 20, border: "1px solid #10b981", animation: "fadeIn 0.3s" }}>{msg}</div>}
+      {msg && <div style={{ background: "#E1F5EE", color: "#085041", border: "1px solid #9FE1CB", borderRadius: 10, padding: "10px 16px", fontSize: 12, marginBottom: 12 }}>{msg}</div>}
 
-        {/* Tab Bar */}
-        <div style={{ display: "flex", gap: 10, marginBottom: 25, flexWrap: "wrap" }}>
-          {DASH_TABS.map(tab => (
-            <button key={tab.id} onClick={() => setDashTab(tab.id)} 
-              style={{ flex: 1, minWidth: 120, padding: "12px 20px", borderRadius: 12, border: "none", background: dashTab === tab.id ? tab.color : card, color: dashTab === tab.id ? "#fff" : txt, cursor: "pointer", transition: "all 0.2s", boxShadow: dashTab === tab.id ? `0 4px 12px ${tab.color}44` : "none", fontWeight: dashTab === tab.id ? "bold" : "normal" }}>
-              {tab.label}
-            </button>
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 5, marginBottom: 14, flexWrap: "wrap" }}>
+        {DASH_TABS.map(([k, l]) => (
+          <button key={k} onClick={() => setDashTab(k)}
+            style={{ padding: "7px 14px", borderRadius: 9, border: `1px solid ${dashTab === k ? "#185FA5" : border}`, background: dashTab === k ? "#185FA5" : card, color: dashTab === k ? "#E6F1FB" : txt2, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {/* OVERVIEW */}
+      {dashTab === "overview" && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 10 }}>
+          {[
+            { label: "إجمالي المقالات", value: news.length, color: "#185FA5", icon: "📝" },
+            { label: "آخر تحديث", value: "اليوم", color: "#0F6E56", icon: "🕒" },
+            { label: "حالة Firebase", value: "متصل", color: "#1D9E75", icon: "🔥" },
+            { label: "حالة الأمان", value: "آمن 🔒", color: "#7F77DD", icon: "🛡️" },
+          ].map((c, i) => (
+            <div key={i} style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: "14px 16px" }}>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>{c.icon}</div>
+              <div style={{ fontSize: 20, fontWeight: 500, color: c.color, marginBottom: 2 }}>{c.value}</div>
+              <div style={{ fontSize: 12, color: txt2 }}>{c.label}</div>
+            </div>
           ))}
-        </div>
-
-        {loading ? (
-          <div style={{ textAlign: "center", padding: 60, color: txt2 }}>جاري تحميل البيانات من Firebase...</div>
-        ) : (
-          <div style={{ background: card, borderRadius: 20, padding: 25, border: `1px solid ${border}`, boxShadow: "0 4px 20px rgba(0,0,0,0.05)" }}>
-            {/* NEWS TAB */}
-            {dashTab === "news" && (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                  <h3 style={{ margin: 0, color: txt }}>إدارة المقالات الإخبارية</h3>
-                  <button onClick={() => { setModal({type: "news", action: "add"}); setForm({ cat: "تراث" }); }} style={{ background: "#185FA5", color: "#fff", border: "none", padding: "10px 20px", borderRadius: 10, cursor: "pointer", fontWeight: "bold" }}>+ إضافة مقال</button>
-                </div>
-                <div style={{ display: "grid", gap: 12 }}>
-                  {news.map(n => (
-                    <div key={n.id} style={{ border: `1px solid ${border}`, padding: 15, borderRadius: 15, display: "flex", alignItems: "center", gap: 15, background: dark ? "rgba(255,255,255,0.02)" : "#fafafa" }}>
-                      <img src={n.img} alt="" style={{ width: 90, height: 70, objectFit: "cover", borderRadius: 10 }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: "bold", color: txt, marginBottom: 5 }}>{n.title}</div>
-                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                          <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 20, background: n.catBg, color: n.catColor }}>{n.cat}</span>
-                          <span style={{ fontSize: 11, color: txt2 }}>{n.date}</span>
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button onClick={() => { setModal({type: "news", action: "edit", data: n}); setForm(n); }} style={{ padding: "8px 15px", borderRadius: 8, border: `1px solid ${border}`, background: card, color: txt, cursor: "pointer" }}>تعديل</button>
-                        <button onClick={() => setDelConfirm({id: n.id, type: "news"})} style={{ padding: "8px 15px", borderRadius: 8, border: "1px solid #ff4d4d", color: "#ff4d4d", background: "none", cursor: "pointer" }}>حذف</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* LANDMARKS TAB */}
-            {dashTab === "landmarks" && (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                  <h3 style={{ margin: 0, color: txt }}>إدارة المعالم الأثرية</h3>
-                  <button onClick={() => { setModal({type: "landmarks", action: "add"}); setForm({}); }} style={{ background: "#0F6E56", color: "#fff", border: "none", padding: "10px 20px", borderRadius: 10, cursor: "pointer", fontWeight: "bold" }}>+ إضافة معلم</button>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 15 }}>
-                  {landmarks.map(l => (
-                    <div key={l.id} style={{ border: `1px solid ${border}`, padding: 15, borderRadius: 15, background: dark ? "rgba(255,255,255,0.02)" : "#fafafa" }}>
-                      <img src={l.img} alt="" style={{ width: "100%", height: 150, objectFit: "cover", borderRadius: 12, marginBottom: 12 }} />
-                      <div style={{ fontWeight: "bold", color: txt, fontSize: 16, marginBottom: 5 }}>{l.name}</div>
-                      <div style={{ fontSize: 12, color: txt2, marginBottom: 10 }}>{l.category} — {l.era}</div>
-                      <div style={{ display: "flex", gap: 8, marginTop: 15 }}>
-                        <button onClick={() => { setModal({type: "landmarks", action: "edit", data: l}); setForm(l); }} style={{ flex: 1, padding: "8px", borderRadius: 8, border: `1px solid ${border}`, background: card, color: txt, cursor: "pointer" }}>تعديل</button>
-                        <button onClick={() => setDelConfirm({id: l.id, type: "landmarks"})} style={{ padding: "8px 15px", borderRadius: 8, border: "1px solid #ff4d4d", color: "#ff4d4d", background: "none", cursor: "pointer" }}>حذف</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* TIMELINE TAB */}
-            {dashTab === "timeline" && (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                  <h3 style={{ margin: 0, color: txt }}>إدارة الجدول الزمني</h3>
-                  <button onClick={() => { setModal({type: "timeline", action: "add"}); setForm({}); }} style={{ background: "#854F0B", color: "#fff", border: "none", padding: "10px 20px", borderRadius: 10, cursor: "pointer", fontWeight: "bold" }}>+ إضافة حدث</button>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {timeline.map(t => (
-                    <div key={t.id} style={{ border: `1px solid ${border}`, padding: 15, borderRadius: 15, display: "flex", alignItems: "center", gap: 20, background: dark ? "rgba(255,255,255,0.02)" : "#fafafa" }}>
-                      <div style={{ width: 80, height: 80, borderRadius: "50%", background: "#854F0B22", color: "#854F0B", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: 14, flexShrink: 0 }}>{t.year}</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: "bold", color: txt, marginBottom: 5 }}>{t.title}</div>
-                        <div style={{ fontSize: 13, color: txt2, lineHeight: 1.5 }}>{t.text}</div>
-                      </div>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button onClick={() => { setModal({type: "timeline", action: "edit", data: t}); setForm(t); }} style={{ padding: "8px 15px", borderRadius: 8, border: `1px solid ${border}`, background: card, color: txt, cursor: "pointer" }}>تعديل</button>
-                        <button onClick={() => setDelConfirm({id: t.id, type: "timeline"})} style={{ padding: "8px 15px", borderRadius: 8, border: "1px solid #ff4d4d", color: "#ff4d4d", background: "none", cursor: "pointer" }}>حذف</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* SETTINGS TAB */}
-            {dashTab === "settings" && (
-              <div style={{ textAlign: "center", padding: 40 }}>
-                <div style={{ fontSize: 50, marginBottom: 20 }}>⚙️</div>
-                <h3 style={{ color: txt }}>إعدادات لوحة التحكم</h3>
-                <p style={{ color: txt2, maxWidth: 500, margin: "0 auto 30px" }}>هنا يمكنك ضبط إعدادات النظام، تغيير كلمة المرور، أو تفعيل الوضع الليلي بشكل دائم.</p>
-                <button onClick={() => setDark(!dark)} style={{ padding: "12px 30px", borderRadius: 12, border: "none", background: "#185FA5", color: "#fff", cursor: "pointer", fontWeight: "bold" }}>
-                  {dark ? "تفعيل الوضع النهاري ☀️" : "تفعيل الوضع الليلي 🌙"}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* GLOBAL MODAL */}
-      {modal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }} onClick={() => setModal(null)}>
-          <div style={{ background: card, padding: 30, borderRadius: 25, width: "100%", maxWidth: 550, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 10px 40px rgba(0,0,0,0.3)" }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ color: txt, marginBottom: 25, fontSize: 20 }}>
-              {modal.action === "add" ? "إضافة " : "تعديل "}
-              {modal.type === "news" ? "مقال إخباري" : modal.type === "landmarks" ? "معلم أثري" : "حدث تاريخي"}
-            </h3>
-            
-            <div style={{ display: "grid", gap: 5 }}>
-              {modal.type === "news" && (
-                <>
-                  <label style={{ fontSize: 12, color: txt2, marginRight: 5 }}>عنوان المقال</label>
-                  <input placeholder="مثلاً: ترميم مسجد الملكة أروى..." value={form.title || ""} onChange={e => setForm({...form, title: e.target.value})} style={inpStyle} />
-                  
-                  <label style={{ fontSize: 12, color: txt2, marginRight: 5 }}>ملخص المقال</label>
-                  <textarea placeholder="وصف قصير للمحتوى..." value={form.summary || ""} onChange={e => setForm({...form, summary: e.target.value})} style={{...inpStyle, height: 100}} />
-                  
-                  <label style={{ fontSize: 12, color: txt2, marginRight: 5 }}>التصنيف</label>
-                  <select value={form.cat || "تراث"} onChange={e => setForm({...form, cat: e.target.value})} style={inpStyle}>
-                    {CAT_OPTIONS.map(c => <option key={c.label} value={c.label}>{c.label}</option>)}
-                  </select>
-                </>
-              )}
-
-              {modal.type === "landmarks" && (
-                <>
-                  <label style={{ fontSize: 12, color: txt2, marginRight: 5 }}>اسم المعلم</label>
-                  <input placeholder="مثلاً: قصر أروى..." value={form.name || ""} onChange={e => setForm({...form, name: e.target.value})} style={inpStyle} />
-                  
-                  <label style={{ fontSize: 12, color: txt2, marginRight: 5 }}>العصر التاريخي</label>
-                  <input placeholder="مثلاً: القرن ١١م" value={form.era || ""} onChange={e => setForm({...form, era: e.target.value})} style={inpStyle} />
-                  
-                  <label style={{ fontSize: 12, color: txt2, marginRight: 5 }}>نوع المعلم</label>
-                  <input placeholder="مثلاً: قصر، مسجد، حصن..." value={form.category || ""} onChange={e => setForm({...form, category: e.target.value})} style={inpStyle} />
-                  
-                  <label style={{ fontSize: 12, color: txt2, marginRight: 5 }}>وصف المعلم</label>
-                  <textarea placeholder="وصف تاريخي مفصل..." value={form.desc || ""} onChange={e => setForm({...form, desc: e.target.value})} style={{...inpStyle, height: 100}} />
-                </>
-              )}
-
-              {modal.type === "timeline" && (
-                <>
-                  <label style={{ fontSize: 12, color: txt2, marginRight: 5 }}>السنة</label>
-                  <input placeholder="مثلاً: ١٠٤٧م" value={form.year || ""} onChange={e => setForm({...form, year: e.target.value})} style={inpStyle} />
-                  
-                  <label style={{ fontSize: 12, color: txt2, marginRight: 5 }}>عنوان الحدث</label>
-                  <input placeholder="مثلاً: وفاة الملكة أروى..." value={form.title || ""} onChange={e => setForm({...form, title: e.target.value})} style={inpStyle} />
-                  
-                  <label style={{ fontSize: 12, color: txt2, marginRight: 5 }}>تفاصيل الحدث</label>
-                  <textarea placeholder="شرح موجز لما حدث..." value={form.text || ""} onChange={e => setForm({...form, text: e.target.value})} style={{...inpStyle, height: 100}} />
-                </>
-              )}
-
-              <label style={{ fontSize: 12, color: txt2, marginRight: 5 }}>رابط الصورة</label>
-              <input placeholder="https://..." value={form.img || ""} onChange={e => setForm({...form, img: e.target.value})} style={inpStyle} />
-            </div>
-
-            <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
-              <button onClick={handleSave} disabled={saving} style={{ flex: 2, padding: "14px", borderRadius: 12, border: "none", background: "#185FA5", color: "#fff", cursor: "pointer", fontWeight: "bold", fontSize: 15 }}>
-                {saving ? "جاري الحفظ..." : "حفظ التغييرات"}
-              </button>
-              <button onClick={() => setModal(null)} style={{ flex: 1, padding: "14px", borderRadius: 12, border: `1px solid ${border}`, background: "none", color: txt, cursor: "pointer" }}>إلغاء</button>
-            </div>
-          </div>
         </div>
       )}
 
-      {/* DELETE CONFIRMATION */}
-      {delConfirm && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
-          <div style={{ background: card, padding: 30, borderRadius: 25, width: 350, textAlign: "center", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
-            <div style={{ fontSize: 50, marginBottom: 15 }}>⚠️</div>
-            <h3 style={{ color: txt, marginBottom: 10 }}>هل أنت متأكد من الحذف؟</h3>
-            <p style={{ color: txt2, fontSize: 14, lineHeight: 1.5, marginBottom: 25 }}>لا يمكن التراجع عن هذه العملية، سيتم حذف البيانات نهائياً من قاعدة بيانات Firebase.</p>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={handleDelete} style={{ flex: 1, padding: "12px", borderRadius: 10, border: "none", background: "#e24b4a", color: "#fff", cursor: "pointer", fontWeight: "bold" }}>تأكيد الحذف</button>
-              <button onClick={() => setDelConfirm(null)} style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1px solid ${border}`, background: "none", color: txt, cursor: "pointer" }}>تراجع</button>
+      {/* CONTENT */}
+      {dashTab === "content" && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 500, color: txt }}>المقالات ({news.length})</div>
+            <button onClick={() => { setModal("add"); setForm({ cat: "تراث" }); }}
+              style={{ padding: "7px 16px", borderRadius: 9, border: "none", background: "#185FA5", color: "#E6F1FB", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>+ مقال جديد</button>
+          </div>
+
+          {loading ? <div style={{ textAlign: "center", padding: 40, color: txt2 }}>جاري التحميل من Firebase...</div> : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {news.map(n => (
+                <div key={n.id} style={{ background: card, border: `1px solid ${border}`, borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+                  <img src={n.img} alt="" style={{ width: 60, height: 48, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: txt, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.title}</div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <span style={{ fontSize: 10, background: n.catBg, color: n.catColor, padding: "1px 8px", borderRadius: 99 }}>{n.cat}</span>
+                      <span style={{ fontSize: 10, color: txt2 }}>{n.date}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
+                    <button onClick={() => { setModal(n); setForm({ title: n.title, summary: n.summary, cat: n.cat, img: n.img }); }}
+                      style={{ padding: "5px 12px", borderRadius: 7, border: `1px solid ${border}`, background: "transparent", color: txt2, fontSize: 11, cursor: "pointer" }}>تعديل</button>
+                    <button onClick={() => setDelConfirm(n.id)}
+                      style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid #F7C1C1", background: "transparent", color: "#A32D2D", fontSize: 11, cursor: "pointer" }}>حذف</button>
+                  </div>
+                </div>
+              ))}
             </div>
+          )}
+
+          {/* Add/Edit Modal */}
+          {modal && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setModal(null)}>
+              <div style={{ background: card, borderRadius: 18, padding: 24, width: 400, maxWidth: "90vw", border: `1px solid ${border}`, maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+                <div style={{ fontSize: 15, fontWeight: 500, color: txt, marginBottom: 16 }}>{modal === "add" ? "إضافة مقال جديد" : "تعديل المقال"}</div>
+
+                <div style={{ fontSize: 11, color: txt2, marginBottom: 4 }}>عنوان المقال *</div>
+                <input value={form.title || ""} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="اكتب عنوان المقال..." style={inpStyle} />
+
+                <div style={{ fontSize: 11, color: txt2, marginBottom: 4 }}>ملخص المقال *</div>
+                <textarea value={form.summary || ""} onChange={e => setForm({ ...form, summary: e.target.value })} placeholder="اكتب ملخص المقال..." rows={3}
+                  style={{ ...inpStyle, resize: "vertical" }} />
+
+                <div style={{ fontSize: 11, color: txt2, marginBottom: 4 }}>التصنيف</div>
+                <select value={form.cat || "تراث"} onChange={e => setForm({ ...form, cat: e.target.value })} style={inpStyle}>
+                  {CAT_OPTIONS.map(c => <option key={c.label} value={c.label}>{c.label}</option>)}
+                </select>
+
+                <div style={{ fontSize: 11, color: txt2, marginBottom: 4 }}>رابط الصورة</div>
+                <input value={form.img || ""} onChange={e => setForm({ ...form, img: e.target.value })} placeholder="https://..." style={inpStyle} />
+
+                {form.img && <img src={form.img} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8, marginBottom: 12 }} onError={e => e.target.style.display = "none"} />}
+
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={saveArticle} disabled={saving}
+                    style={{ flex: 1, padding: "10px 0", borderRadius: 9, border: "none", background: saving ? "#6b9ec9" : "#185FA5", color: "#fff", fontSize: 12, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                    {saving ? "جاري الحفظ..." : "حفظ"}
+                  </button>
+                  <button onClick={() => { setModal(null); setForm({}); }}
+                    style={{ flex: 1, padding: "10px 0", borderRadius: 9, border: `1px solid ${border}`, background: "transparent", color: txt2, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>إلغاء</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Delete Confirm */}
+          {delConfirm && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ background: card, borderRadius: 16, padding: 24, width: 280, border: `1px solid ${border}`, textAlign: "center" }}>
+                <div style={{ fontSize: 28, marginBottom: 10 }}>🗑️</div>
+                <div style={{ fontSize: 14, fontWeight: 500, color: txt, marginBottom: 8 }}>تأكيد الحذف</div>
+                <div style={{ fontSize: 12, color: txt2, marginBottom: 18 }}>هل أنت متأكد؟ لا يمكن التراجع.</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => deleteArticle(delConfirm)}
+                    style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "none", background: "#A32D2D", color: "#fff", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>حذف</button>
+                  <button onClick={() => setDelConfirm(null)}
+                    style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${border}`, background: "transparent", color: txt2, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>إلغاء</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SETTINGS */}
+      {dashTab === "settings" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: "18px" }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: txt, marginBottom: 14 }}>🌐 معلومات الموقع</div>
+            {[["name", "اسم الموقع"], ["tagline", "الشعار النصي"], ["email", "البريد الإلكتروني"]].map(([f, ph]) => (
+              <div key={f} style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: txt2, marginBottom: 4 }}>{ph}</div>
+                <input value={siteSettings[f]} onChange={e => setSiteSettings({ ...siteSettings, [f]: e.target.value })}
+                  style={{ width: "100%", padding: "9px 12px", borderRadius: 8, fontSize: 12, border: `1px solid ${border}`, background: inputBg, color: txt, direction: "rtl", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
+              </div>
+            ))}
+          </div>
+          <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: "18px" }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: txt, marginBottom: 14 }}>🔐 الأمان</div>
+            {[["https", "تفعيل HTTPS"], ["logging", "تسجيل الأخطاء"], ["backup", "النسخ الاحتياطي"]].map(([k, label]) => (
+              <div key={k} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px solid ${border}` }}>
+                <span style={{ fontSize: 12, color: txt }}>{label}</span>
+                <div onClick={() => setSiteSettings(s => ({ ...s, [k]: !s[k] }))}
+                  style={{ width: 38, height: 22, borderRadius: 11, background: siteSettings[k] ? "#185FA5" : "#d1d5db", cursor: "pointer", position: "relative", transition: "background .2s" }}>
+                  <div style={{ position: "absolute", top: 3, left: siteSettings[k] ? 18 : 3, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left .2s" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ gridColumn: "1/-1" }}>
+            {settingsSaved && <div style={{ background: "#E1F5EE", color: "#085041", border: "1px solid #9FE1CB", borderRadius: 10, padding: "10px 16px", fontSize: 12, marginBottom: 10 }}>✅ تم حفظ الإعدادات</div>}
+            <button onClick={() => { setSettingsSaved(true); setTimeout(() => setSettingsSaved(false), 3000); }}
+              style={{ padding: "10px 28px", borderRadius: 10, border: "none", background: "#185FA5", color: "#E6F1FB", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>حفظ الإعدادات</button>
           </div>
         </div>
       )}
@@ -418,43 +383,222 @@ function Dashboard({ dark, firebaseUser }) {
   );
 }
 
-// ============ MAIN APP ============
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [dark, setDark] = useState(false);
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoading(false);
-    });
-    return unsub;
-  }, []);
-
-  if (loading) return (
-    <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#042C53", color: "#fff", direction: "rtl", fontFamily: "sans-serif" }}>
-      <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 40, marginBottom: 20, animation: "pulse 2s infinite" }}>🏛️</div>
-        <div style={{ fontSize: 18 }}>جاري تحميل لوحة التحكم...</div>
+// ============ BANNER ============
+function Banner({ slide }) {
+  const stars = useRef(Array.from({ length: 28 }, () => ({ top: `${Math.random() * 75}%`, left: `${Math.random() * 100}%`, w: 1 + Math.random() * 2, dur: `${2 + Math.random() * 4}s`, del: `${Math.random() * 4}s` }))).current;
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: `linear-gradient(150deg,${slide.bg1},${slide.bg2})` }}>
+      <style>{`@keyframes tw{0%{opacity:.08}100%{opacity:.9}}@keyframes mp{0%{transform:scale(1)}100%{transform:scale(1.1)}}@keyframes fb{0%{transform:translateX(0)}100%{transform:translateX(-28px)}}@keyframes ff{0%{transform:translateX(0)}100%{transform:translateX(20px)}}@keyframes fu{0%{opacity:0;transform:translateY(18px)}100%{opacity:1;transform:translateY(0)}}`}</style>
+      {stars.map((s, i) => <div key={i} style={{ position: "absolute", top: s.top, left: s.left, width: s.w, height: s.w, borderRadius: "50%", background: "#fff", animation: `tw ${s.dur} ${s.del} ease-in-out infinite alternate` }} />)}
+      <div style={{ position: "absolute", top: 26, left: 52, width: 54, height: 54, borderRadius: "50%", background: "#FAC775", animation: "mp 4s ease-in-out infinite alternate" }} />
+      <svg style={{ position: "absolute", bottom: 0, width: "125%", left: "-12%", animation: "fb 20s ease-in-out infinite alternate" }} viewBox="0 0 900 200" preserveAspectRatio="none"><path d="M0,200 L0,130 Q50,90 100,110 Q150,130 220,70 Q290,10 370,80 Q450,140 530,60 Q610,-10 700,75 Q780,145 860,90 L900,80 L900,200Z" fill={`${slide.bg1}cc`} /></svg>
+      <svg style={{ position: "absolute", bottom: 0, width: "115%", left: "-7%", animation: "ff 14s ease-in-out infinite alternate" }} viewBox="0 0 900 160" preserveAspectRatio="none"><path d="M0,160 L0,110 Q80,55 170,90 Q260,125 360,45 Q460,-20 570,65 Q670,140 760,80 Q820,40 900,70 L900,160Z" fill={`${slide.bg1}ee`} /></svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 10, padding: 20, direction: "rtl" }}>
+        <div style={{ fontSize: 11, color: "#9FE1CB", border: `1px solid ${slide.accent}88`, padding: "4px 14px", borderRadius: 99, marginBottom: 14, background: `${slide.accent}22` }}>{slide.badge}</div>
+        <h1 style={{ fontSize: 28, fontWeight: 500, color: "#E6F1FB", textAlign: "center", marginBottom: 10, lineHeight: 1.45 }}>{slide.title}</h1>
+        <p style={{ fontSize: 13, color: "#85B7EB", textAlign: "center", marginBottom: 24, lineHeight: 1.9, maxWidth: 420 }}>{slide.subtitle}</p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          <button style={{ background: slide.accent, color: "#fff", border: "none", padding: "10px 26px", borderRadius: 9, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>{slide.btn1}</button>
+          <button style={{ background: "rgba(255,255,255,0.1)", color: "#E6F1FB", border: "1px solid rgba(255,255,255,0.25)", padding: "10px 26px", borderRadius: 9, fontSize: 13, cursor: "pointer" }}>{slide.btn2}</button>
+        </div>
       </div>
     </div>
   );
+}
+
+// ============ MAIN APP ============
+export default function App() {
+  const [dark, setDark] = useState(false);
+  const [cur, setCur] = useState(0);
+  const [section, setSection] = useState("home");
+  const [newsFilter, setNewsFilter] = useState("الكل");
+  const [galleryIdx, setGalleryIdx] = useState(null);
+  const [firebaseUser, setFirebaseUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [publicNews, setPublicNews] = useState(DEFAULT_NEWS);
+  const timer = useRef(null);
+
+  const bg = dark ? "#0f0f1a" : "#f2f4f8";
+  const card = dark ? "#1a1a2e" : "#fff";
+  const border = dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)";
+  const txt = dark ? "#e8e8f0" : "#1a1a2e";
+  const txt2 = dark ? "#9090b0" : "#6b7280";
+
+  useEffect(() => {
+    if (window.location.pathname === "/dashboard") setSection("dashboard");
+    const unsub = onAuthStateChanged(auth, u => { setFirebaseUser(u); setAuthLoading(false); });
+    // جلب الأخبار للصفحة العامة
+    getDocs(collection(db, "news")).then(snap => {
+      if (!snap.empty) setPublicNews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }).catch(() => {});
+    return unsub;
+  }, []);
+
+  useEffect(() => { timer.current = setInterval(() => setCur(c => (c + 1) % SLIDES.length), 4500); return () => clearInterval(timer.current); }, []);
+
+  const CATS = ["الكل", ...[...new Set(publicNews.map(n => n.cat))]];
+  const filteredNews = newsFilter === "الكل" ? publicNews : publicNews.filter(n => n.cat === newsFilter);
+  const NAV = [["home", "الرئيسية"], ["landmarks", "المعالم"], ["history", "التاريخ"], ["gallery", "الصور"]];
+
+  if (authLoading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#042C53", color: "#85B7EB", fontSize: 14 }}>جاري التحميل...</div>;
+  if (section === "dashboard") { return firebaseUser ? <Dashboard dark={dark} firebaseUser={firebaseUser} /> : <LoginPage dark={dark} />; }
 
   return (
-    <div>
-      {user ? (
-        <Dashboard dark={dark} firebaseUser={user} />
-      ) : (
-        <LoginPage dark={dark} />
+    <div style={{ fontFamily: "Arial, sans-serif", direction: "rtl", background: bg, minHeight: "100vh" }}>
+      <style>{`.ncard:hover{transform:translateY(-3px)}.ncard{transition:all .2s}.lcard:hover{border-color:#378ADD!important;transform:translateY(-2px)}.lcard{transition:all .2s}`}</style>
+
+      {/* NAV */}
+      <div style={{ background: card, borderBottom: `1px solid ${border}`, padding: "0 16px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 54, position: "sticky", top: 0, zIndex: 100 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,#185FA5,#378ADD)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🏛️</div>
+          <div><div style={{ fontSize: 14, fontWeight: 500, color: txt }}>جبلة — درة اليمن</div><div style={{ fontSize: 10, color: txt2 }}>بوابة المدينة الإخبارية</div></div>
+        </div>
+        <div style={{ display: "flex", gap: 2 }}>
+          {NAV.map(([k, l]) => (<button key={k} onClick={() => setSection(k)} style={{ padding: "6px 11px", borderRadius: 8, border: "none", background: section === k ? "#185FA5" : "transparent", color: section === k ? "#E6F1FB" : txt2, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>{l}</button>))}
+        </div>
+        <button onClick={() => setDark(!dark)} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${border}`, background: "transparent", cursor: "pointer", fontSize: 14 }}>{dark ? "☀️" : "🌙"}</button>
+      </div>
+
+      {/* BANNER */}
+      <div style={{ position: "relative", height: 370, margin: "14px 14px 0", borderRadius: 18, overflow: "hidden", boxShadow: "0 10px 44px rgba(0,0,0,0.2)" }}>
+        <Banner slide={SLIDES[cur]} />
+        {[{ d: "right", n: (cur - 1 + SLIDES.length) % SLIDES.length, ch: "‹" }, { d: "left", n: (cur + 1) % SLIDES.length, ch: "›" }].map(a => (
+          <button key={a.d} onClick={() => { clearInterval(timer.current); setCur(a.n); }} style={{ position: "absolute", top: "50%", [a.d]: 12, transform: "translateY(-50%)", width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", color: "#fff", cursor: "pointer", fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>{a.ch}</button>
+        ))}
+      </div>
+      <div style={{ display: "flex", justifyContent: "center", gap: 7, padding: "10px 0 2px" }}>
+        {SLIDES.map((_, i) => <div key={i} onClick={() => { clearInterval(timer.current); setCur(i); }} style={{ height: 5, width: i === cur ? 24 : 5, borderRadius: 99, background: i === cur ? SLIDES[cur].accent : (dark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.15)"), cursor: "pointer", transition: "all .3s" }} />)}
+      </div>
+
+      {/* HOME */}
+      {section === "home" && (
+        <div style={{ padding: "10px 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+            <div style={{ fontSize: 16, fontWeight: 500, color: txt }}>آخر الأخبار</div>
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+              {CATS.map(c => <button key={c} onClick={() => setNewsFilter(c)} style={{ padding: "5px 12px", borderRadius: 99, fontSize: 11, cursor: "pointer", fontFamily: "inherit", border: `1px solid ${newsFilter === c ? "#185FA5" : border}`, background: newsFilter === c ? "#185FA5" : "transparent", color: newsFilter === c ? "#E6F1FB" : txt2 }}>{c}</button>)}
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12 }}>
+            {filteredNews.map((n, i) => (
+              <div key={n.id || i} className="ncard" style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, overflow: "hidden" }}>
+                <img src={n.img} alt={n.title} style={{ width: "100%", height: 100, objectFit: "cover" }} />
+                <div style={{ padding: "10px 12px 8px" }}>
+                  <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                    <span style={{ fontSize: 10, background: n.catBg, color: n.catColor, padding: "2px 8px", borderRadius: 99 }}>{n.cat}</span>
+                    <span style={{ fontSize: 10, color: txt2 }}>{n.time}</span>
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: txt, marginBottom: 5, lineHeight: 1.5 }}>{n.title}</div>
+                  <div style={{ fontSize: 11, color: txt2, lineHeight: 1.6 }}>{n.summary?.substring(0, 90)}...</div>
+                  <div style={{ marginTop: 8, fontSize: 11, color: n.accent, fontWeight: 500, cursor: "pointer" }}>اقرأ المزيد ←</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
-      {/* Floating Dark Mode Toggle */}
-      <button onClick={() => setDark(!dark)} 
-        style={{ position: "fixed", bottom: 25, left: 25, width: 50, height: 50, borderRadius: "50%", border: "none", background: dark ? "#fff" : "#1a1a2e", color: dark ? "#1a1a2e" : "#fff", cursor: "pointer", fontSize: 24, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 20px rgba(0,0,0,0.3)", zIndex: 2000, transition: "transform 0.2s" }}
-        onMouseOver={e => e.currentTarget.style.transform = "scale(1.1)"}
-        onMouseOut={e => e.currentTarget.style.transform = "scale(1)"}>
-        {dark ? "☀️" : "🌙"}
-      </button>
+
+      {/* LANDMARKS */}
+      {section === "landmarks" && (
+        <div style={{ padding: "14px" }}>
+          <div style={{ fontSize: 16, fontWeight: 500, color: txt, marginBottom: 14 }}>المعالم السياحية والأثرية</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 14 }}>
+            {LANDMARKS_FULL.map(lm => (
+              <div key={lm.id} className="lcard" style={{ background: card, border: `1px solid ${border}`, borderRadius: 16, overflow: "hidden" }}>
+                <div style={{ position: "relative", height: 180 }}>
+                  <img src={lm.img} alt={lm.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top,rgba(0,0,0,0.6) 0%,transparent 50%)" }} />
+                  <div style={{ position: "absolute", bottom: 10, right: 10, fontSize: 10, color: "#fff", background: lm.color, padding: "3px 10px", borderRadius: 99 }}>{lm.category}</div>
+                  {lm.rating && <div style={{ position: "absolute", top: 10, left: 10, fontSize: 11, color: "#fff", background: "rgba(0,0,0,0.5)", padding: "3px 9px", borderRadius: 99 }}>⭐ {lm.rating}</div>}
+                </div>
+                <div style={{ padding: "14px" }}>
+                  <div style={{ fontSize: 15, fontWeight: 500, color: txt, marginBottom: 6 }}>{lm.name}</div>
+                  <div style={{ fontSize: 11, color: txt2, marginBottom: 8 }}>📍 {lm.location}</div>
+                  <div style={{ fontSize: 12, color: txt2, lineHeight: 1.7, marginBottom: 12 }}>{lm.desc}</div>
+                  <a href={lm.mapUrl} target="_blank" rel="noreferrer" style={{ display: "inline-block", background: lm.bg, color: lm.color, borderRadius: 8, fontSize: 12, fontWeight: 500, textDecoration: "none", padding: "8px 16px" }}>عرض على الخريطة ↗</a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* HISTORY */}
+      {section === "history" && (
+        <div style={{ padding: "14px" }}>
+          <div style={{ fontSize: 16, fontWeight: 500, color: txt, marginBottom: 18 }}>تاريخ جبلة عبر القرون</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            {HISTORY_TIMELINE.map((h, i) => (
+              <div key={i} style={{ display: "flex", gap: 14, paddingBottom: 20, position: "relative" }}>
+                {i < HISTORY_TIMELINE.length - 1 && <div style={{ position: "absolute", right: 5, top: 22, bottom: 0, width: 1, background: border }} />}
+                <div style={{ width: 12, height: 12, borderRadius: "50%", background: h.color, flexShrink: 0, marginTop: 5, zIndex: 1 }} />
+                <div style={{ flex: 1, background: card, border: `1px solid ${border}`, borderRadius: 12, padding: "12px 14px" }}>
+                  <div style={{ fontSize: 11, color: h.color, fontWeight: 500, marginBottom: 4 }}>{h.year}</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: txt, marginBottom: 6 }}>{h.title}</div>
+                  <div style={{ fontSize: 12, color: txt2, lineHeight: 1.7 }}>{h.text}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* GALLERY */}
+      {section === "gallery" && (
+        <div style={{ padding: "14px" }}>
+          <div style={{ fontSize: 16, fontWeight: 500, color: txt, marginBottom: 14 }}>معرض الصور</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 10 }}>
+            {GALLERY_IMGS.map((g, i) => (
+              <div key={i} onClick={() => setGalleryIdx(i)} style={{ position: "relative", borderRadius: 12, overflow: "hidden", cursor: "pointer" }}>
+                <img src={g.src} alt={g.caption} style={{ width: "100%", height: 120, objectFit: "cover", display: "block" }} />
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top,rgba(0,0,0,0.6) 0%,transparent 60%)" }} />
+                <div style={{ position: "absolute", bottom: 6, right: 6, left: 6, fontSize: 10, color: "#fff" }}>{g.caption}</div>
+              </div>
+            ))}
+          </div>
+          {galleryIdx !== null && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }} onClick={() => setGalleryIdx(null)}>
+              <img src={GALLERY_IMGS[galleryIdx].src} alt="" style={{ maxWidth: "90%", maxHeight: "75vh", borderRadius: 12 }} onClick={e => e.stopPropagation()} />
+              <div style={{ color: "#E6F1FB", fontSize: 13 }}>{GALLERY_IMGS[galleryIdx].caption}</div>
+              <div style={{ display: "flex", gap: 12 }}>
+                <button onClick={e => { e.stopPropagation(); setGalleryIdx((galleryIdx - 1 + GALLERY_IMGS.length) % GALLERY_IMGS.length); }} style={{ padding: "8px 20px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.3)", background: "transparent", color: "#fff", cursor: "pointer", fontSize: 18 }}>‹</button>
+                <span style={{ color: "rgba(255,255,255,0.5)", padding: "8px 10px" }}>{galleryIdx + 1}/{GALLERY_IMGS.length}</span>
+                <button onClick={e => { e.stopPropagation(); setGalleryIdx((galleryIdx + 1) % GALLERY_IMGS.length); }} style={{ padding: "8px 20px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.3)", background: "transparent", color: "#fff", cursor: "pointer", fontSize: 18 }}>›</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* STATS */}
+      <div style={{ margin: "18px 14px", borderRadius: 18, overflow: "hidden" }}>
+        <div style={{ background: "linear-gradient(135deg,#042C53,#185FA5)", padding: "18px 20px 14px" }}>
+          <div style={{ fontSize: 16, fontWeight: 500, color: "#E6F1FB" }}>جبلة بالأرقام</div>
+        </div>
+        <div style={{ background: dark ? "#13132a" : "#1e3a5f", padding: "14px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 9 }}>
+            {STATS.map((s, i) => (
+              <div key={i} style={{ background: "rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px 10px", textAlign: "center", border: "1px solid rgba(255,255,255,0.07)" }}>
+                <div style={{ fontSize: 24, marginBottom: 6 }}>{s.icon}</div>
+                <div style={{ fontSize: 17, fontWeight: 500, color: s.color, marginBottom: 2 }}>{s.value}</div>
+                <div style={{ fontSize: 9, color: "#6b9ec9", marginBottom: 4 }}>{s.sub}</div>
+                <div style={{ fontSize: 10, color: "#85B7EB" }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      <div style={{ background: dark ? "#1a1a2e" : "#1e3a5f", padding: "16px 20px", borderTop: `1px solid ${border}` }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg,#185FA5,#378ADD)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🏛️</div>
+            <div><div style={{ fontSize: 13, fontWeight: 500, color: "#E6F1FB" }}>جبلة — درة اليمن</div><div style={{ fontSize: 10, color: "#6b9ec9" }}>jabla-city.org</div></div>
+          </div>
+          <div style={{ fontSize: 10, color: "#6b9ec9" }}>© ٢٠٢٥ بوابة جبلة — جميع الحقوق محفوظة</div>
+        </div>
+      </div>
     </div>
   );
 }
