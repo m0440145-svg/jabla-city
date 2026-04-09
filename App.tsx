@@ -615,6 +615,12 @@ export default function App() {
   const txt2 = dark ? "#9090b0" : "#6b7280";
   const inputBg = dark ? "#252540" : "#f8f9fa";
 
+  useEffect(() => {
+    if (window.location.pathname === "/dashboard") {
+      setSection("dashboard");
+    }
+  }, []);
+
   useEffect(() => { timer.current = setInterval(() => setCur(c => (c + 1) % SLIDES.length), 4500); return () => clearInterval(timer.current); }, []);
 
   const CATS = ["الكل", ...[...new Set(NEWS.map(n => n.cat))]];
