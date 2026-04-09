@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+
 const REAL_PHOTOS = {
   mosque: "https://lh3.googleusercontent.com/place-photos/AL8-SNH5RPqKpJT7LsORftzOBRjxriqIdX-DIKbz77e6IuY6jdzk49RzcgL7TCd75BO9lLZw1Q7P66zBFA68ly5bH9hvj8jr0TRe76yQfkRtPQEXNRlloocu2796IIFg51TMtXC5lrcYb92YDt6G4iI=s800-w800-h600",
   mosque2: "https://lh3.googleusercontent.com/place-photos/AL8-SNFvLVTHF-8JJjFErkEjRI6cKEIv9axbYcy0XTPtTElhEDG7daKckN0UP6tcf4-SpFTAEp4_6Y3jM17eopt26nwJR5G69Vfvd5i0S0HZVe5z9Z_YDChbEVkA7ZAn97yfrRIDMcVRM-Y254sTp1Y=s800-w800-h600",
@@ -75,6 +76,412 @@ const LM_MAP = [
   { id: "springs", x: 74, y: 45, label: "عيون المياه", color: "#16A34A", icon: "⛲", desc: "ينابيع طبيعية" },
 ];
 
+// ============ DASHBOARD DATA ============
+const INIT_USERS = [
+  { id: 1, name: "أحمد محمد", email: "ahmed@jabla.com", role: "admin", status: "active", joined: "٢٠٢٤/١/١٠" },
+  { id: 2, name: "فاطمة علي", email: "fatima@jabla.com", role: "editor", status: "active", joined: "٢٠٢٤/٣/٢٢" },
+  { id: 3, name: "محمد سالم", email: "msalem@jabla.com", role: "user", status: "active", joined: "٢٠٢٤/٦/٥" },
+  { id: 4, name: "نور الهدى", email: "nour@jabla.com", role: "editor", status: "inactive", joined: "٢٠٢٣/١١/١٨" },
+  { id: 5, name: "خالد حسن", email: "khaled@jabla.com", role: "user", status: "active", joined: "٢٠٢٥/١/٢" },
+];
+
+const VISITOR_DATA = [
+  { month: "أكتوبر", v: 1200 }, { month: "نوفمبر", v: 1850 }, { month: "ديسمبر", v: 2100 },
+  { month: "يناير", v: 1700 }, { month: "فبراير", v: 2400 }, { month: "مارس", v: 3100 },
+  { month: "أبريل", v: 2800 },
+];
+
+const ROLE_COLORS = { admin: { bg: "#FCEBEB", c: "#A32D2D", label: "مدير" }, editor: { bg: "#FAEEDA", c: "#854F0B", label: "محرر" }, user: { bg: "#E6F1FB", c: "#185FA5", label: "مستخدم" } };
+const STATUS_COLORS = { active: { bg: "#E1F5EE", c: "#0F6E56", label: "نشط" }, inactive: { bg: "#F1EFE8", c: "#5F5E5A", label: "غير نشط" } };
+
+// Mini Bar Chart
+function MiniChart({ data, color, dark }) {
+  const max = Math.max(...data.map(d => d.v));
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 80, direction: "ltr" }}>
+      {data.map((d, i) => (
+        <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+          <div style={{ width: "100%", background: i === data.length - 1 ? color : (dark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)"), borderRadius: "4px 4px 0 0", height: `${(d.v / max) * 72}px`, transition: "height .4s", position: "relative" }}>
+            {i === data.length - 1 && <div style={{ position: "absolute", top: -18, left: "50%", transform: "translateX(-50%)", fontSize: 9, color, fontWeight: 500, whiteSpace: "nowrap" }}>{d.v.toLocaleString()}</div>}
+          </div>
+          <div style={{ fontSize: 8, color: dark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.3)", writingMode: "vertical-rl", transform: "rotate(180deg)", height: 30 }}>{d.month}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Dashboard Section
+function Dashboard({ dark, currentUser }) {
+  const card = dark ? "#1a1a2e" : "#fff";
+  const border = dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)";
+  const txt = dark ? "#e8e8f0" : "#1a1a2e";
+  const txt2 = dark ? "#9090b0" : "#6b7280";
+  const bg2 = dark ? "#13132a" : "#f8f9fb";
+  const inputBg = dark ? "#252540" : "#f4f5f7";
+
+  const [dashTab, setDashTab] = useState("overview");
+  const [users, setUsers] = useState(INIT_USERS);
+  const [userModal, setUserModal] = useState(null); // null | "add" | {user}
+  const [userForm, setUserForm] = useState({});
+  const [delConfirm, setDelConfirm] = useState(null);
+  const [contentTab, setContentTab] = useState("articles");
+  const [siteSettings, setSiteSettings] = useState({ name: "جبلة — درة اليمن", tagline: "بوابة المدينة الإخبارية", email: "info@jabla-city.org", phone: "+967-4-000-0000", https: true, logging: true, backup: true });
+  const [settingsSaved, setSettingsSaved] = useState(false);
+  const [actLog] = useState([
+    { time: "٠٩:١٢", action: "تسجيل دخول", user: "أحمد محمد", type: "info" },
+    { time: "٠٩:١٨", action: "إضافة مقال جديد", user: "فاطمة علي", type: "success" },
+    { time: "١٠:٠٥", action: "تعديل إعدادات الموقع", user: "أحمد محمد", type: "warning" },
+    { time: "١٠:٣٣", action: "حذف تعليق مسيء", user: "فاطمة علي", type: "danger" },
+    { time: "١١:٠٠", action: "تسجيل مستخدم جديد", user: "النظام", type: "info" },
+    { time: "١١:٤٥", action: "تنزيل نسخة احتياطية", user: "أحمد محمد", type: "success" },
+  ]);
+
+  const isAdmin = currentUser && (currentUser.email === "ahmed@jabla.com" || currentUser.role === "admin");
+
+  const inp = (f, ph, type = "text") => (
+    <input key={f} type={type} placeholder={ph} value={userForm[f] || ""} onChange={e => setUserForm({ ...userForm, [f]: e.target.value })}
+      style={{ width: "100%", padding: "9px 12px", borderRadius: 8, fontSize: 12, border: `1px solid ${border}`, background: inputBg, color: txt, direction: "rtl", marginBottom: 10, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
+  );
+
+  const saveUser = () => {
+    if (!userForm.name || !userForm.email) return;
+    if (userModal === "add") {
+      setUsers(u => [...u, { id: Date.now(), name: userForm.name, email: userForm.email, role: userForm.role || "user", status: "active", joined: "٢٠٢٥/٤/٩" }]);
+    } else {
+      setUsers(u => u.map(x => x.id === userModal.id ? { ...x, ...userForm } : x));
+    }
+    setUserModal(null); setUserForm({});
+  };
+
+  const DASH_TABS = [["overview", "📊 نظرة عامة"], ["users", "👥 المستخدمون"], ["content", "📝 المحتوى"], ["settings", "⚙️ الإعدادات"], ["logs", "📋 السجلات"]];
+
+  const OVERVIEW_CARDS = [
+    { label: "إجمالي الزوار", value: "٣,١٠٠", sub: "+١٨٪ هذا الشهر", color: "#185FA5", bg: "#E6F1FB", icon: "👁️" },
+    { label: "إجمالي المستخدمين", value: users.length.toString(), sub: `${users.filter(u => u.status === "active").length} نشط`, color: "#0F6E56", bg: "#E1F5EE", icon: "👥" },
+    { label: "المقالات المنشورة", value: "٢٤", sub: "٦ هذا الشهر", color: "#854F0B", bg: "#FAEEDA", icon: "📝" },
+    { label: "الطلبات المعلقة", value: "٧", sub: "تحتاج مراجعة", color: "#A32D2D", bg: "#FCEBEB", icon: "⏳" },
+  ];
+
+  const logTypeStyle = { info: { bg: "#E6F1FB", c: "#185FA5" }, success: { bg: "#E1F5EE", c: "#0F6E56" }, warning: { bg: "#FAEEDA", c: "#854F0B" }, danger: { bg: "#FCEBEB", c: "#A32D2D" } };
+
+  return (
+    <div style={{ padding: "14px", direction: "rtl" }}>
+      {/* Header */}
+      <div style={{ background: "linear-gradient(135deg,#042C53,#185FA5)", borderRadius: 16, padding: "18px 20px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 11, color: "#9FE1CB", border: "1px solid rgba(29,158,117,0.4)", display: "inline-block", padding: "2px 12px", borderRadius: 99, marginBottom: 6, background: "rgba(29,158,117,0.15)" }}>لوحة التحكم</div>
+          <div style={{ fontSize: 18, fontWeight: 500, color: "#E6F1FB" }}>مرحباً، {currentUser ? currentUser.name : "الزائر"} 👋</div>
+          <div style={{ fontSize: 12, color: "#85B7EB", marginTop: 2 }}>إدارة بوابة جبلة — آخر تحديث: ٩ أبريل ٢٠٢٥</div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "8px 14px", textAlign: "center" }}>
+            <div style={{ fontSize: 16, fontWeight: 500, color: "#EF9F27" }}>٩٩.٨٪</div>
+            <div style={{ fontSize: 10, color: "#85B7EB" }}>وقت التشغيل</div>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "8px 14px", textAlign: "center" }}>
+            <div style={{ fontSize: 16, fontWeight: 500, color: "#1D9E75" }}>آمن 🔒</div>
+            <div style={{ fontSize: 10, color: "#85B7EB" }}>حالة الأمان</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 5, marginBottom: 14, flexWrap: "wrap" }}>
+        {DASH_TABS.map(([k, l]) => (
+          <button key={k} onClick={() => setDashTab(k)}
+            style={{ padding: "7px 14px", borderRadius: 9, border: `1px solid ${dashTab === k ? "#185FA5" : border}`, background: dashTab === k ? "#185FA5" : card, color: dashTab === k ? "#E6F1FB" : txt2, fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: dashTab === k ? 500 : 400 }}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {/* ── OVERVIEW ── */}
+      {dashTab === "overview" && (
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 10, marginBottom: 14 }}>
+            {OVERVIEW_CARDS.map((c, i) => (
+              <div key={i} style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: "14px 16px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <div style={{ fontSize: 20 }}>{c.icon}</div>
+                  <div style={{ fontSize: 10, background: c.bg, color: c.color, padding: "2px 8px", borderRadius: 99 }}>مباشر</div>
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 500, color: c.color, marginBottom: 2 }}>{c.value}</div>
+                <div style={{ fontSize: 12, color: txt, fontWeight: 500, marginBottom: 2 }}>{c.label}</div>
+                <div style={{ fontSize: 11, color: txt2 }}>{c.sub}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+            <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: "16px" }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: txt, marginBottom: 4 }}>الزوار — آخر ٧ أشهر</div>
+              <div style={{ fontSize: 11, color: txt2, marginBottom: 14 }}>إجمالي ١٥,١٥٠ زيارة</div>
+              <MiniChart data={VISITOR_DATA} color="#185FA5" dark={dark} />
+            </div>
+            <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: "16px" }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: txt, marginBottom: 12 }}>توزيع المستخدمين</div>
+              {Object.entries(ROLE_COLORS).map(([role, rc]) => {
+                const count = users.filter(u => u.role === role).length;
+                const pct = Math.round((count / users.length) * 100);
+                return (
+                  <div key={role} style={{ marginBottom: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontSize: 11, color: txt2 }}>{rc.label}</span>
+                      <span style={{ fontSize: 11, fontWeight: 500, color: rc.c }}>{count} ({pct}٪)</span>
+                    </div>
+                    <div style={{ background: dark ? "rgba(255,255,255,0.08)" : "#f0f0f0", borderRadius: 99, height: 6, overflow: "hidden" }}>
+                      <div style={{ width: `${pct}%`, height: "100%", background: rc.c, borderRadius: 99, transition: "width .5s" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Quick actions */}
+          <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: "16px" }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: txt, marginBottom: 12 }}>إجراءات سريعة</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {[["إضافة مستخدم", "#185FA5", () => { setDashTab("users"); setUserModal("add"); setUserForm({}); }], ["نشر مقال", "#0F6E56", () => setDashTab("content")], ["نسخ احتياطي", "#854F0B", () => alert("✅ تم بدء النسخ الاحتياطي")], ["إعدادات الموقع", "#7F77DD", () => setDashTab("settings")]].map(([l, c, fn]) => (
+                <button key={l} onClick={fn} style={{ padding: "9px 18px", borderRadius: 9, border: "none", background: c, color: "#fff", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>{l}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── USERS ── */}
+      {dashTab === "users" && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 500, color: txt }}>إدارة المستخدمين ({users.length})</div>
+            <button onClick={() => { setUserModal("add"); setUserForm({ role: "user" }); }}
+              style={{ padding: "7px 16px", borderRadius: 9, border: "none", background: "#185FA5", color: "#E6F1FB", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>+ إضافة مستخدم</button>
+          </div>
+          <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, overflow: "hidden" }}>
+            {/* Table header */}
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 2.5fr 1fr 1fr 1.5fr 1fr", gap: 8, padding: "10px 16px", background: bg2, borderBottom: `1px solid ${border}`, fontSize: 11, color: txt2, fontWeight: 500 }}>
+              <span>الاسم</span><span>البريد</span><span>الدور</span><span>الحالة</span><span>تاريخ الانضمام</span><span>إجراءات</span>
+            </div>
+            {users.map((u, i) => (
+              <div key={u.id} style={{ display: "grid", gridTemplateColumns: "2fr 2.5fr 1fr 1fr 1.5fr 1fr", gap: 8, padding: "11px 16px", borderBottom: i < users.length - 1 ? `1px solid ${border}` : "none", alignItems: "center", fontSize: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#185FA5,#1D9E75)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff", flexShrink: 0 }}>{u.name[0]}</div>
+                  <span style={{ color: txt, fontWeight: 500 }}>{u.name}</span>
+                </div>
+                <span style={{ color: txt2 }}>{u.email}</span>
+                <span style={{ background: ROLE_COLORS[u.role]?.bg, color: ROLE_COLORS[u.role]?.c, padding: "2px 8px", borderRadius: 99, fontSize: 10, display: "inline-block" }}>{ROLE_COLORS[u.role]?.label}</span>
+                <span style={{ background: STATUS_COLORS[u.status]?.bg, color: STATUS_COLORS[u.status]?.c, padding: "2px 8px", borderRadius: 99, fontSize: 10, display: "inline-block" }}>{STATUS_COLORS[u.status]?.label}</span>
+                <span style={{ color: txt2 }}>{u.joined}</span>
+                <div style={{ display: "flex", gap: 5 }}>
+                  <button onClick={() => { setUserModal(u); setUserForm({ name: u.name, email: u.email, role: u.role, status: u.status }); }}
+                    style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: txt2, fontSize: 11, cursor: "pointer" }}>تعديل</button>
+                  <button onClick={() => setDelConfirm(u.id)}
+                    style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #F7C1C1", background: "transparent", color: "#A32D2D", fontSize: 11, cursor: "pointer" }}>حذف</button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* User Modal */}
+          {userModal && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setUserModal(null)}>
+              <div style={{ background: card, borderRadius: 16, padding: 24, width: 320, maxWidth: "90vw", border: `1px solid ${border}` }} onClick={e => e.stopPropagation()}>
+                <div style={{ fontSize: 15, fontWeight: 500, color: txt, marginBottom: 16 }}>{userModal === "add" ? "إضافة مستخدم جديد" : `تعديل: ${userModal.name}`}</div>
+                {inp("name", "الاسم الكريم")}
+                {inp("email", "البريد الإلكتروني", "email")}
+                {userModal === "add" && inp("password", "كلمة المرور", "password")}
+                <select value={userForm.role || "user"} onChange={e => setUserForm({ ...userForm, role: e.target.value })}
+                  style={{ width: "100%", padding: "9px 12px", borderRadius: 8, fontSize: 12, border: `1px solid ${border}`, background: inputBg, color: txt, direction: "rtl", marginBottom: 10, outline: "none", fontFamily: "inherit" }}>
+                  <option value="admin">مدير</option>
+                  <option value="editor">محرر</option>
+                  <option value="user">مستخدم</option>
+                </select>
+                {userModal !== "add" && (
+                  <select value={userForm.status || "active"} onChange={e => setUserForm({ ...userForm, status: e.target.value })}
+                    style={{ width: "100%", padding: "9px 12px", borderRadius: 8, fontSize: 12, border: `1px solid ${border}`, background: inputBg, color: txt, direction: "rtl", marginBottom: 10, outline: "none", fontFamily: "inherit" }}>
+                    <option value="active">نشط</option>
+                    <option value="inactive">غير نشط</option>
+                  </select>
+                )}
+                <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                  <button onClick={saveUser} style={{ flex: 1, padding: "10px 0", borderRadius: 9, border: "none", background: "#185FA5", color: "#fff", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>حفظ</button>
+                  <button onClick={() => setUserModal(null)} style={{ flex: 1, padding: "10px 0", borderRadius: 9, border: `1px solid ${border}`, background: "transparent", color: txt2, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>إلغاء</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Delete confirm */}
+          {delConfirm && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ background: card, borderRadius: 16, padding: 24, width: 280, border: `1px solid ${border}`, textAlign: "center" }}>
+                <div style={{ fontSize: 28, marginBottom: 10 }}>🗑️</div>
+                <div style={{ fontSize: 14, fontWeight: 500, color: txt, marginBottom: 8 }}>تأكيد الحذف</div>
+                <div style={{ fontSize: 12, color: txt2, marginBottom: 18 }}>هل أنت متأكد من حذف هذا المستخدم؟ لا يمكن التراجع.</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => { setUsers(u => u.filter(x => x.id !== delConfirm)); setDelConfirm(null); }}
+                    style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "none", background: "#A32D2D", color: "#fff", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>حذف</button>
+                  <button onClick={() => setDelConfirm(null)}
+                    style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `1px solid ${border}`, background: "transparent", color: txt2, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>إلغاء</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── CONTENT ── */}
+      {dashTab === "content" && (
+        <div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+            {[["articles", "مقالات"], ["images", "الصور"], ["pages", "الصفحات"]].map(([k, l]) => (
+              <button key={k} onClick={() => setContentTab(k)}
+                style={{ padding: "7px 16px", borderRadius: 9, border: `1px solid ${contentTab === k ? "#0F6E56" : border}`, background: contentTab === k ? "#0F6E56" : card, color: contentTab === k ? "#E1F5EE" : txt2, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>{l}</button>
+            ))}
+          </div>
+
+          {contentTab === "articles" && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+                <button style={{ padding: "7px 16px", borderRadius: 9, border: "none", background: "#0F6E56", color: "#E1F5EE", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>+ مقال جديد</button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {NEWS.map(n => (
+                  <div key={n.id} style={{ background: card, border: `1px solid ${border}`, borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+                    <img src={n.img} alt="" style={{ width: 56, height: 44, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: txt, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.title}</div>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        <span style={{ fontSize: 10, background: n.catBg, color: n.catColor, padding: "1px 8px", borderRadius: 99 }}>{n.cat}</span>
+                        <span style={{ fontSize: 10, color: txt2 }}>{n.date}</span>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
+                      <button style={{ padding: "5px 10px", borderRadius: 7, border: `1px solid ${border}`, background: "transparent", color: txt2, fontSize: 11, cursor: "pointer" }}>تعديل</button>
+                      <button style={{ padding: "5px 10px", borderRadius: 7, border: "1px solid #F7C1C1", background: "transparent", color: "#A32D2D", fontSize: 11, cursor: "pointer" }}>حذف</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {contentTab === "images" && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+                <button style={{ padding: "7px 16px", borderRadius: 9, border: "none", background: "#854F0B", color: "#FAEEDA", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>⬆ رفع صور</button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 8 }}>
+                {GALLERY_IMGS.map((g, i) => (
+                  <div key={i} style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: `1px solid ${border}` }}>
+                    <img src={g.src} alt="" style={{ width: "100%", height: 80, objectFit: "cover", display: "block" }} />
+                    <div style={{ padding: "6px 8px", background: card }}>
+                      <div style={{ fontSize: 10, color: txt2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.caption}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {contentTab === "pages" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {[["الرئيسية", "منشورة", "#0F6E56", "#E1F5EE"], ["المعالم السياحية", "منشورة", "#0F6E56", "#E1F5EE"], ["تاريخ المدينة", "منشورة", "#0F6E56", "#E1F5EE"], ["اتصل بنا", "مسودة", "#854F0B", "#FAEEDA"]].map(([name, status, c, bg]) => (
+                <div key={name} style={{ background: card, border: `1px solid ${border}`, borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 16 }}>📄</span>
+                    <span style={{ fontSize: 13, color: txt, fontWeight: 500 }}>{name}</span>
+                    <span style={{ fontSize: 10, background: bg, color: c, padding: "2px 8px", borderRadius: 99 }}>{status}</span>
+                  </div>
+                  <button style={{ padding: "5px 12px", borderRadius: 7, border: `1px solid ${border}`, background: "transparent", color: txt2, fontSize: 11, cursor: "pointer" }}>تعديل</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── SETTINGS ── */}
+      {dashTab === "settings" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          {/* Site info */}
+          <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: "18px" }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: txt, marginBottom: 14 }}>🌐 معلومات الموقع</div>
+            {[["name", "اسم الموقع"], ["tagline", "الشعار النصي"], ["email", "البريد الإلكتروني"], ["phone", "رقم الهاتف"]].map(([f, ph]) => (
+              <div key={f} style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: txt2, marginBottom: 4 }}>{ph}</div>
+                <input value={siteSettings[f]} onChange={e => setSiteSettings({ ...siteSettings, [f]: e.target.value })}
+                  style={{ width: "100%", padding: "9px 12px", borderRadius: 8, fontSize: 12, border: `1px solid ${border}`, background: inputBg, color: txt, direction: "rtl", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
+              </div>
+            ))}
+          </div>
+
+          {/* Security & System */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: "18px" }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: txt, marginBottom: 14 }}>🔐 الأمان والنظام</div>
+              {[["https", "تفعيل HTTPS", "#0F6E56"], ["logging", "تسجيل الأخطاء (Logging)", "#185FA5"], ["backup", "النسخ الاحتياطي التلقائي", "#854F0B"]].map(([k, label, c]) => (
+                <div key={k} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px solid ${border}` }}>
+                  <span style={{ fontSize: 12, color: txt }}>{label}</span>
+                  <div onClick={() => setSiteSettings(s => ({ ...s, [k]: !s[k] }))}
+                    style={{ width: 38, height: 22, borderRadius: 11, background: siteSettings[k] ? c : (dark ? "rgba(255,255,255,0.15)" : "#d1d5db"), cursor: "pointer", position: "relative", transition: "background .2s" }}>
+                    <div style={{ position: "absolute", top: 3, left: siteSettings[k] ? 18 : 3, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: "18px" }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: txt, marginBottom: 12 }}>🔑 صلاحيات الأدوار</div>
+              {Object.entries(ROLE_COLORS).map(([role, rc]) => (
+                <div key={role} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span style={{ fontSize: 10, background: rc.bg, color: rc.c, padding: "3px 10px", borderRadius: 99 }}>{rc.label}</span>
+                  <span style={{ fontSize: 11, color: txt2 }}>{role === "admin" ? "وصول كامل" : role === "editor" ? "تعديل المحتوى" : "قراءة فقط"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ gridColumn: "1/-1" }}>
+            {settingsSaved && <div style={{ background: "#E1F5EE", color: "#085041", border: "1px solid #9FE1CB", borderRadius: 10, padding: "10px 16px", fontSize: 12, marginBottom: 10 }}>✅ تم حفظ الإعدادات بنجاح</div>}
+            <button onClick={() => { setSettingsSaved(true); setTimeout(() => setSettingsSaved(false), 3000); }}
+              style={{ padding: "10px 28px", borderRadius: 10, border: "none", background: "#185FA5", color: "#E6F1FB", fontSize: 13, cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}>حفظ الإعدادات</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── LOGS ── */}
+      {dashTab === "logs" && (
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 500, color: txt, marginBottom: 12 }}>📋 سجل النشاطات — اليوم</div>
+          <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, overflow: "hidden" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 1fr 80px", gap: 8, padding: "9px 16px", background: bg2, borderBottom: `1px solid ${border}`, fontSize: 11, color: txt2, fontWeight: 500 }}>
+              <span>الوقت</span><span>الإجراء</span><span>المستخدم</span><span>النوع</span>
+            </div>
+            {actLog.map((l, i) => (
+              <div key={i} style={{ display: "grid", gridTemplateColumns: "80px 1fr 1fr 80px", gap: 8, padding: "11px 16px", borderBottom: i < actLog.length - 1 ? `1px solid ${border}` : "none", alignItems: "center", fontSize: 12 }}>
+                <span style={{ color: txt2, fontFamily: "monospace" }}>{l.time}</span>
+                <span style={{ color: txt }}>{l.action}</span>
+                <span style={{ color: txt2 }}>{l.user}</span>
+                <span style={{ fontSize: 10, background: logTypeStyle[l.type]?.bg, color: logTypeStyle[l.type]?.c, padding: "2px 8px", borderRadius: 99, display: "inline-block", textAlign: "center" }}>
+                  {l.type === "info" ? "معلومة" : l.type === "success" ? "نجاح" : l.type === "warning" ? "تحذير" : "خطر"}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+            <button style={{ padding: "8px 18px", borderRadius: 9, border: `1px solid ${border}`, background: "transparent", color: txt2, fontSize: 12, cursor: "pointer" }}>تصدير السجل ↓</button>
+            <button style={{ padding: "8px 18px", borderRadius: 9, border: "1px solid #F7C1C1", background: "transparent", color: "#A32D2D", fontSize: 12, cursor: "pointer" }}>مسح السجل</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ========== ORIGINAL COMPONENTS ==========
 function Banner({ slide }) {
   const stars = useRef(Array.from({ length: 28 }, () => ({ top: `${Math.random() * 75}%`, left: `${Math.random() * 100}%`, w: 1 + Math.random() * 2, dur: `${2 + Math.random() * 4}s`, del: `${Math.random() * 4}s` }))).current;
   return (
@@ -108,7 +515,6 @@ function Map3D({ dark }) {
   const GRID = 60;
   const terrain = (x, y) => { const nx = x / GRID, ny = y / GRID; return Math.sin(nx * 3.2) * 18 + Math.cos(ny * 2.8) * 14 + Math.sin((nx + ny) * 4.1) * 10 + Math.cos(nx * 7) * 5 + Math.sin(ny * 6) * 4 + (Math.abs(nx - 0.5) < 0.15 && Math.abs(ny - 0.5) < 0.15 ? 22 : 0) + Math.sin(nx * 12) * 2 + Math.cos(ny * 10) * 2; };
   const project = (wx, wy, wz, rot, tilt, zoom, W, H) => { const cx = wx - GRID / 2, cy = wy - GRID / 2; const rx = cx * Math.cos(rot) - cy * Math.sin(rot); const ry = cx * Math.sin(rot) + cy * Math.cos(rot); const py = ry * Math.cos(tilt) - wz * Math.sin(tilt); return { x: W / 2 + rx * zoom * 3.8, y: H / 2 + py * zoom * 3.8 }; };
-
   useEffect(() => {
     const canvas = canvasRef.current; if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -145,7 +551,6 @@ function Map3D({ dark }) {
     draw();
     return () => { if (S.current.animFrame) cancelAnimationFrame(S.current.animFrame); };
   }, [dark]);
-
   const onMM = (e) => {
     const r = canvasRef.current.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
     if (S.current.dragging) { S.current.rot += (mx - S.current.lastX) * 0.008; S.current.tilt = Math.max(0.2, Math.min(1.2, S.current.tilt - (my - S.current.lastY) * 0.006)); S.current.autoRot = false; S.current.lastX = mx; S.current.lastY = my; return; }
@@ -153,7 +558,6 @@ function Map3D({ dark }) {
     if (hov !== S.current.hoveredPin) { S.current.hoveredPin = hov; canvasRef.current.style.cursor = hov ? "pointer" : "grab"; }
     setTooltip(hov ? LM_MAP.find(l => l.id === hov) : null);
   };
-
   const selLM = selected ? LANDMARKS_FULL.find(l => l.id === selected) : null;
   return (
     <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", boxShadow: "0 12px 48px rgba(0,0,0,0.3)" }}>
@@ -190,6 +594,7 @@ function Map3D({ dark }) {
   );
 }
 
+// ========== MAIN APP ==========
 export default function App() {
   const [dark, setDark] = useState(false);
   const [cur, setCur] = useState(0);
@@ -200,7 +605,6 @@ export default function App() {
   const [authForm, setAuthForm] = useState({});
   const [newsFilter, setNewsFilter] = useState("الكل");
   const [galleryIdx, setGalleryIdx] = useState(null);
-  const [langOpen, setLangOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const timer = useRef(null);
 
@@ -219,7 +623,7 @@ export default function App() {
   const doReg = () => { if (authForm.email && authForm.password && authForm.name) { setUser({ name: authForm.name, email: authForm.email }); setModal(null); setAuthForm({}); } };
   const inp = (f, ph, type = "text") => (<input key={f} type={type} placeholder={ph} value={authForm[f] || ""} onChange={e => setAuthForm({ ...authForm, [f]: e.target.value })} style={{ width: "100%", padding: "11px 14px", borderRadius: 10, fontSize: 13, border: `1px solid ${dark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)"}`, background: inputBg, color: txt, direction: "rtl", marginBottom: 12, outline: "none", fontFamily: "inherit" }} />);
 
-  const NAV = [["home", "الرئيسية"], ["landmarks", "المعالم"], ["history", "التاريخ"], ["gallery", "الصور"], ["map", "الخريطة"]];
+  const NAV = [["home", "الرئيسية"], ["landmarks", "المعالم"], ["history", "التاريخ"], ["gallery", "الصور"], ["map", "الخريطة"], ["dashboard", "⚙️ لوحة التحكم"]];
 
   return (
     <div style={{ fontFamily: "Arial, sans-serif", direction: "rtl", background: bg, minHeight: "100vh", transition: "background .3s" }}>
@@ -231,19 +635,20 @@ export default function App() {
           <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,#185FA5,#378ADD)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🏛️</div>
           <div><div style={{ fontSize: 14, fontWeight: 500, color: txt }}>جبلة — درة اليمن</div><div style={{ fontSize: 10, color: txt2 }}>بوابة المدينة الإخبارية</div></div>
         </div>
-        <div style={{ display: "flex", gap: 2 }}>
-          {NAV.map(([k, l]) => (<button key={k} onClick={() => setSection(k)} style={{ padding: "6px 11px", borderRadius: 8, border: "none", background: section === k ? "#185FA5" : "transparent", color: section === k ? "#E6F1FB" : txt2, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>{l}</button>))}
+        <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+          {NAV.map(([k, l]) => (<button key={k} onClick={() => setSection(k)} style={{ padding: "6px 10px", borderRadius: 8, border: "none", background: section === k ? (k === "dashboard" ? "#534AB7" : "#185FA5") : "transparent", color: section === k ? "#E6F1FB" : (k === "dashboard" ? "#7F77DD" : txt2), fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: k === "dashboard" ? 500 : 400 }}>{l}</button>))}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <button onClick={() => setDark(!dark)} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${border}`, background: "transparent", cursor: "pointer", fontSize: 14 }}>{dark ? "☀️" : "🌙"}</button>
           {user ? (
             <div style={{ position: "relative" }}>
-              <div onClick={() => { setUserOpen(!userOpen); setLangOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px 4px 4px", borderRadius: 8, border: `1px solid ${border}`, cursor: "pointer" }}>
+              <div onClick={() => setUserOpen(!userOpen)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px 4px 4px", borderRadius: 8, border: `1px solid ${border}`, cursor: "pointer" }}>
                 <div style={{ width: 26, height: 26, borderRadius: "50%", background: "linear-gradient(135deg,#185FA5,#1D9E75)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff", fontWeight: 500 }}>{user.name[0].toUpperCase()}</div>
                 <span style={{ fontSize: 12, color: txt }}>{user.name}</span>
               </div>
               {userOpen && <div style={{ position: "absolute", right: 0, top: 40, background: card, border: `1px solid ${border}`, borderRadius: 10, zIndex: 200, boxShadow: "0 8px 24px rgba(0,0,0,.18)", minWidth: 160 }}>
                 <div style={{ padding: "10px 14px", borderBottom: `1px solid ${border}` }}><div style={{ fontSize: 13, fontWeight: 500, color: txt }}>{user.name}</div><div style={{ fontSize: 11, color: txt2 }}>{user.email}</div></div>
+                <div onClick={() => { setSection("dashboard"); setUserOpen(false); }} style={{ padding: "9px 14px", cursor: "pointer", fontSize: 12, color: "#7F77DD" }}>⚙️ لوحة التحكم</div>
                 <div onClick={() => { setUser(null); setUserOpen(false); }} style={{ padding: "9px 14px", cursor: "pointer", fontSize: 12, color: "#E24B4A" }}>🚪 تسجيل الخروج</div>
               </div>}
             </div>
@@ -255,19 +660,26 @@ export default function App() {
           )}
         </div>
       </div>
-      {(langOpen || userOpen) && <div style={{ position: "fixed", inset: 0, zIndex: 99 }} onClick={() => { setLangOpen(false); setUserOpen(false); }} />}
+      {userOpen && <div style={{ position: "fixed", inset: 0, zIndex: 99 }} onClick={() => setUserOpen(false)} />}
 
-      {/* BANNER */}
-      <div style={{ position: "relative", height: 370, margin: "14px 14px 0", borderRadius: 18, overflow: "hidden", boxShadow: "0 10px 44px rgba(0,0,0,0.2)" }}>
-        <Banner slide={SLIDES[cur]} />
-        {[{ d: "right", n: (cur - 1 + SLIDES.length) % SLIDES.length, ch: "‹" }, { d: "left", n: (cur + 1) % SLIDES.length, ch: "›" }].map(a => (
-          <button key={a.d} onClick={() => { clearInterval(timer.current); setCur(a.n); }} style={{ position: "absolute", top: "50%", [a.d]: 12, transform: "translateY(-50%)", width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", color: "#fff", cursor: "pointer", fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>{a.ch}</button>
-        ))}
-        <div style={{ position: "absolute", top: 12, right: 12, fontSize: 10, color: "rgba(255,255,255,0.7)", background: "rgba(0,0,0,0.3)", padding: "2px 9px", borderRadius: 99 }}>{cur + 1}/{SLIDES.length}</div>
-      </div>
-      <div style={{ display: "flex", justifyContent: "center", gap: 7, padding: "10px 0 2px" }}>
-        {SLIDES.map((_, i) => <div key={i} onClick={() => { clearInterval(timer.current); setCur(i); }} style={{ height: 5, width: i === cur ? 24 : 5, borderRadius: 99, background: i === cur ? SLIDES[cur].accent : (dark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.15)"), cursor: "pointer", transition: "all .3s" }} />)}
-      </div>
+      {/* DASHBOARD — full page, no banner */}
+      {section === "dashboard" && <Dashboard dark={dark} currentUser={user} />}
+
+      {/* BANNER — only on non-dashboard pages */}
+      {section !== "dashboard" && (
+        <>
+          <div style={{ position: "relative", height: 370, margin: "14px 14px 0", borderRadius: 18, overflow: "hidden", boxShadow: "0 10px 44px rgba(0,0,0,0.2)" }}>
+            <Banner slide={SLIDES[cur]} />
+            {[{ d: "right", n: (cur - 1 + SLIDES.length) % SLIDES.length, ch: "‹" }, { d: "left", n: (cur + 1) % SLIDES.length, ch: "›" }].map(a => (
+              <button key={a.d} onClick={() => { clearInterval(timer.current); setCur(a.n); }} style={{ position: "absolute", top: "50%", [a.d]: 12, transform: "translateY(-50%)", width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", color: "#fff", cursor: "pointer", fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>{a.ch}</button>
+            ))}
+            <div style={{ position: "absolute", top: 12, right: 12, fontSize: 10, color: "rgba(255,255,255,0.7)", background: "rgba(0,0,0,0.3)", padding: "2px 9px", borderRadius: 99 }}>{cur + 1}/{SLIDES.length}</div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "center", gap: 7, padding: "10px 0 2px" }}>
+            {SLIDES.map((_, i) => <div key={i} onClick={() => { clearInterval(timer.current); setCur(i); }} style={{ height: 5, width: i === cur ? 24 : 5, borderRadius: 99, background: i === cur ? SLIDES[cur].accent : (dark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.15)"), cursor: "pointer", transition: "all .3s" }} />)}
+          </div>
+        </>
+      )}
 
       {/* HOME */}
       {section === "home" && (
